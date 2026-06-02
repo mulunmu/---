@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <title>登录 - 智驱·链析</title>
+  <link rel="stylesheet" href="/web/css/dashboard.css?v=20260423" />
+  <style>
+    .login-wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+    .login-box {
+      width: min(400px, calc(100vw - 32px));
+      padding: 30px 26px;
+      background: rgba(18, 18, 18, 0.56);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 0 60px rgba(0, 0, 0, 0.55), inset 0 0 24px rgba(124, 92, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .login-title { color: rgba(234, 240, 255, 0.95); font-size: 19px; letter-spacing: 1px; }
+    .mode-row { display: flex; gap: 8px; }
+    .mode-row button {
+      flex: 1; height: 38px; border-radius: 999px; cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.05); color: #d1d5db; font-size: 13px;
+    }
+    .mode-row button.active {
+      border: none; color: #001018;
+      background: linear-gradient(135deg, #7c5cff, #00d4ff);
+      box-shadow: 0 0 16px rgba(0, 212, 255, 0.35);
+    }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { color: rgba(234, 240, 255, 0.72); font-size: 12px; }
+    .field input {
+      padding: 12px; border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.06); color: #fff; outline: none;
+    }
+    .field input:focus {
+      border-color: rgba(0, 212, 255, 0.35);
+      box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+    }
+    .hint { color: rgba(234, 240, 255, 0.58); font-size: 12px; line-height: 1.35; }
+    .btn {
+      height: 44px; border: none; border-radius: 14px; cursor: pointer;
+      background: linear-gradient(135deg, #7c5cff, #00d4ff);
+      color: #001018; font-size: 14px; box-shadow: 0 0 18px rgba(0, 212, 255, 0.35);
+    }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .msg { font-size: 12px; line-height: 1.4; display: none; }
+    .msg.err { color: #ff9f9f; }
+    .msg.ok { color: #90f4bf; }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .link { color: rgba(214, 185, 122, 0.9); font-size: 12px; text-decoration: none; border-bottom: 1px solid rgba(214, 185, 122, 0.3); }
+  </style>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-box">
+      <div class="login-title">智驱·链析</div>
+      <div class="mode-row">
+        <button id="modeLogin" class="active" type="button">登录</button>
+        <button id="modeRegister" type="button">注册</button>
+      </div>
+
+      <div class="field">
+        <label id="accountLabel">邮箱</label>
+        <input id="email" type="text" placeholder="请输入邮箱，例如 user@example.com" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label>密码</label>
+        <input id="password" type="password" placeholder="请输入密码（至少8位）" autocomplete="current-password" />
+      </div>
+      <div class="hint" id="hintText">登录使用现有账号；没有账号请切换到“注册”。</div>
+
+      <div id="err" class="msg err"></div>
+      <div id="ok" class="msg ok"></div>
+
+      <button id="submitBtn" class="btn" type="button">登录</button>
+      <div class="row">
+        <a href="/web/index.html" class="link">已登录？进入主页面</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var mode = "login";
+      var err = document.getElementById("err");
+      var ok = document.getElementById("ok");
+      var submitBtn = document.getElementById("submitBtn");
+      var modeLogin = document.getElementById("modeLogin");
+      var modeRegister = document.getElementById("modeRegister");
+      var hintText = document.getElementById("hintText");
+
+      function showErr(msg) { ok.style.display = "none"; err.textContent = msg; err.style.display = "block"; }
+      function showOk(msg) { err.style.display = "none"; ok.textContent = msg; ok.style.display = "block"; }
+      function clearMsg() { err.style.display = "none"; ok.style.display = "none"; err.textContent = ""; ok.textContent = ""; }
+
+      function normalizeEmail(raw) {
+        var v = (raw || "").trim();
+        if (!v) return "";
+        if (v.indexOf("@") >= 0) return v;
+        return v + "@example.com";
+      }
+
+      function setMode(nextMode) {
+        mode = nextMode;
+        clearMsg();
+        if (mode === "login") {
+          submitBtn.textContent = "登录";
+          modeLogin.classList.add("active");
+          modeRegister.classList.remove("active");
+          hintText.textContent = "登录使用现有账号；没有账号请切换到“注册”。";
+        } else {
+          submitBtn.textContent = "注册并登录";
+          modeRegister.classList.add("active");
+          modeLogin.classList.remove("active");
+          hintText.textContent = "注册要求：邮箱格式正确，密码至少8位。注册成功后会自动登录。";
+        }
+      }
+
+      async function doLogin(email, password) {
+        var form = new URLSearchParams();
+        form.set("username", email);
+        form.set("password", password);
+        var r = await fetch("/api/v1/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: form.toString()
+        });
+        var data = await r.json().catch(function () { return {}; });
+        var payload = (data && data.data) ? data.data : data;
+        if (!r.ok) throw new Error((data && (data.message || data.detail)) || "登录失败");
+        if (!payload || !payload.access_token) throw new Error("登录失败：未返回 access_token");
+        localStorage.setItem("token", payload.access_token);
+      }
+
+      async function doRegister(email, password) {
+        var r = await fetch("/api/v1/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email, password: password })
+        });
+        var data = await r.json().catch(function () { return {}; });
+        var payload = (data && data.data) ? data.data : data;
+        if (!r.ok) throw new Error((data && (data.message || data.detail)) || "注册失败");
+        if (!payload || !payload.access_token) throw new Error("注册失败：未返回 access_token");
+        localStorage.setItem("token", payload.access_token);
+      }
+
+      async function submit() {
+        clearMsg();
+        var emailRaw = document.getElementById("email").value;
+        var password = (document.getElementById("password").value || "").trim();
+        var email = normalizeEmail(emailRaw);
+
+        if (!email || !password) { showErr("请输入邮箱和密码"); return; }
+        if (password.length < 8) { showErr("密码至少 8 位"); return; }
+
+        submitBtn.disabled = true;
+        try {
+          if (mode === "register") {
+            await doRegister(email, password);
+            showOk("注册并登录成功，正在进入系统...");
+          } else {
+            await doLogin(email, password);
+            showOk("登录成功，正在进入系统...");
+          }
+          setTimeout(function () { window.location.href = "/web/index.html"; }, 400);
+        } catch (e) {
+          showErr("失败：" + (e && e.message ? e.message : "unknown"));
+        } finally {
+          submitBtn.disabled = false;
+        }
+      }
+
+      modeLogin.addEventListener("click", function () { setMode("login"); });
+      modeRegister.addEventListener("click", function () { setMode("register"); });
+      submitBtn.addEventListener("click", submit);
+      document.addEventListener("keydown", function (e) { if (e.key === "Enter") submit(); });
+
+      setMode("login");
+    })();
+  </script>
+</body>
+</html>
