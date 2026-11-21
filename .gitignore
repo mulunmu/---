@@ -1,4 +1,61 @@
+# Environment / secrets — NEVER commit real keys
 .env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+credentials.json
+service-account.json
+
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+venv/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore  # intentionally tracked for Docker builds
+
+# OS
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# Claude / Agents
+.claude/
+.agents/
+.openclaw/
+
+# Logs
+*.log
+logs/
+
+# Test / coverage
+.coverage
+htmlcov/
 .pytest_cache/
-*.pyc
+.tox/
+
+# Node
+node_modules/
+package-lock.json

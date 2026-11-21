@@ -11,6 +11,7 @@ from app.db.base import Base
 
 class ScoringResult(Base):
     __tablename__ = "scoring_results"
+    # 该表用于缓存评分结果（避免重复计算），并非原始事实数据来源。
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     stock_code: Mapped[str] = mapped_column(String(64), index=True, nullable=False)

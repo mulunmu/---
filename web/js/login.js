@@ -121,6 +121,7 @@
     try {
       showSuccess('正在注册...');
       await window.apiClient.register(payload.username, payload.password);
+      // 注册后自动登录，减少一次用户手动操作。
       await window.apiClient.login(payload.username, payload.password);
       showSuccess('注册并登录成功，正在进入系统...');
       setTimeout(function () {

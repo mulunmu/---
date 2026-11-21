@@ -1,9 +1,6 @@
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    security_opt:
-      - seccomp=unconfined
-    privileged: true
     environment:
       POSTGRES_DB: app_v2
       POSTGRES_USER: app_v2
@@ -12,22 +9,26 @@ services:
       - "5432:5432"
     volumes:
       - pg_data_v2:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_v2 -d app_v2"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7
-    security_opt:
-      - seccomp=unconfined
-    privileged: true
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    security_opt:
-      - seccomp=unconfined
-    privileged: true
     env_file:
       - .env
     environment:
@@ -36,15 +37,13 @@ services:
       ENVIRONMENT: docker
       DATABASE_URL: postgresql+asyncpg://app_v2:app_v2@postgres:5432/app_v2
       REDIS_URL: redis://redis:6379/0
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:?JWT_ALGORITHM is required}
-      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:?JWT_ACCESS_TOKEN_EXPIRE_MINUTES is required}
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   pg_data_v2:
-

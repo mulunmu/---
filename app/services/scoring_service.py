@@ -189,6 +189,7 @@ class ScoringService:
             text("CREATE UNIQUE INDEX IF NOT EXISTS ix_scoring_results_stock_code_year ON scoring_results (stock_code, year);")
         )
         await db.execute(text("CREATE INDEX IF NOT EXISTS ix_scoring_results_data_hash ON scoring_results (data_hash);"))
+        # 缓存表和索引兜底创建，保障评分接口可直接落库/更新。
         await db.commit()
 
     async def get_raw_data(self, stock_code: str, year: int) -> Optional[Dict[str, Any]]:
@@ -312,6 +313,7 @@ class ScoringService:
         if raw_data is None:
             return None
 
+        # 通过原始数据哈希判断缓存是否可复用，避免重复写入。
         raw_data_str = json.dumps(raw_data, sort_keys=True, default=str)
         data_hash = hashlib.md5(raw_data_str.encode()).hexdigest()
         bind = db.get_bind()

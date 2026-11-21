@@ -20,6 +20,7 @@ def strip_json_fences(text: str) -> str:
 
 
 def extract_json_object(text: str) -> dict[str, Any] | None:
+    # 允许模型输出带 ```json``` 围栏或夹杂额外文本，尽可能提取出“单个 JSON 对象”。
     raw = strip_json_fences(text)
     try:
         obj = json.loads(raw)

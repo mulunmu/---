@@ -27,6 +27,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
     settings = get_settings()
+    # JWT 仅写入最小声明（sub/exp），降低泄漏面的同时满足鉴权需求。
     expire = datetime.now(timezone.utc) + (
         expires_delta if expires_delta is not None else timedelta(minutes=settings.jwt_access_token_expire_minutes)
     )

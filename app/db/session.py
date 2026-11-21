@@ -9,6 +9,7 @@ from app.core.config import get_settings
 
 def get_engine() -> AsyncEngine:
     settings = get_settings()
+    # 每次调用创建 engine，偏“简单可用”；如需更高性能可改为进程级单例缓存。
     return create_async_engine(settings.database_url, pool_pre_ping=True)
 
 

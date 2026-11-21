@@ -19,6 +19,7 @@ class EmbeddingService:
         if not texts:
             return []
         if self._client is None:
+            # 无外部 embedding 服务时使用确定性 hash 向量，保证检索链路可跑通（效果会下降）。
             return [self._hash_embedding(t) for t in texts]
 
         # batch call

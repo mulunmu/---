@@ -1,10 +1,14 @@
-__pycache__/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.venv/
+# Docker build ignore — keep build context lean and secure
+.env
+.git
+.gitignore
+*.md
 venv/
-.git/
-.idea/
-.vscode/
+.venv/
+__pycache__/
 *.pyc
+node_modules/
+.claude/
+.agents/
+test_local.db
+*.sqlite

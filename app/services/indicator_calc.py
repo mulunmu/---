@@ -324,11 +324,16 @@ class IndicatorEngineV2:
         }
 
     def _extract_sales_data(self, row: dict[str, Any]) -> dict[str, Any]:
-        sales_volume = _to_float(row.get("total_sales_volume"), default=None)
+        raw_total = _to_float(row.get("total_sales_volume"), default=None)
+        nev = _to_float(row.get("nev_sales_volume"), default=None)
+        # 部分车企在 fact_sales 中总销量未写入（为 0）但新能源销量列有合计口径，用于展示与下游指标
+        sales_volume = raw_total
+        if (sales_volume is None or sales_volume == 0) and nev not in (None, 0):
+            sales_volume = nev
         return {
             "sales_volume": sales_volume,
             "production_volume": sales_volume,
-            "nev_sales_volume": _to_float(row.get("nev_sales_volume"), default=None),
+            "nev_sales_volume": nev,
         }
 
     def _extract_legal_data(self, row: dict[str, Any]) -> dict[str, Any]:
@@ -785,6 +790,7 @@ class IndicatorEngineV2:
 
 
 async def calculate_indicators(stock_code: str, year: int) -> dict:
+    # 对外统一入口：按 stock_code + year 计算单企业全量指标与评分基础数据。
     sessionmaker = get_sessionmaker()
     engine = IndicatorEngineV2()
     async with sessionmaker() as db:

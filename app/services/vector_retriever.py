@@ -42,6 +42,7 @@ class VectorRetriever:
         return []
 
     async def retrieve(self, query: str, top_k: int = 5) -> List[DocumentChunk]:
+        # 多阶段检索：pgvector 相似度 -> trigram -> 关键词 -> 最近文档兜底，保证“有结果且可解释”。
         sm = get_sessionmaker()
         vec_rows: list[dict] = []
         trigram_rows: list[dict] = []

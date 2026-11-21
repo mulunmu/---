@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    # 应用对象在此统一组装：路由、异常处理、静态资源与启动钩子。
     app = FastAPI(title=settings.app_name)
     install_exception_handlers(app)
     app.include_router(api_router)
@@ -34,6 +35,7 @@ def create_app() -> FastAPI:
         the scoring cache table can be missing even if services are running.
         Ensure it exists to prevent /api/v1/scoring/* returning 500.
         """
+        # 启动阶段兜底建表，避免首次部署或半初始化环境直接报错。
         engine = get_engine()
         is_pg = engine.url.drivername == "postgresql+asyncpg"
 
@@ -98,38 +100,43 @@ def create_app() -> FastAPI:
                     "CREATE INDEX IF NOT EXISTS ix_core_metrics_summary_enterprise_year ON public.core_metrics_summary (enterprise_name, year);"
                 )
                 # Pre-aggregate yearly core metrics for fast metric queries.
-                await conn.exec_driver_sql(
-                    """
-                    INSERT INTO public.core_metrics_summary (
-                        stock_code, enterprise_name, year, revenue, net_profit, total_assets, sales_volume, roe, updated_at
+                try:
+                    await conn.exec_driver_sql(
+                        """
+                        INSERT INTO public.core_metrics_summary (
+                            stock_code, enterprise_name, year, revenue, net_profit, total_assets, sales_volume, roe, updated_at
+                        )
+                        SELECT
+                            COALESCE(NULLIF(de.stock_code, ''), de.stock_name) AS stock_code,
+                            de.stock_name AS enterprise_name,
+                            ff.year::int AS year,
+                            MAX(ff.revenue::double precision) AS revenue,
+                            MAX(ff.net_profit::double precision) AS net_profit,
+                            MAX(ff.total_assets::double precision) AS total_assets,
+                            MAX(fs.total_sales_volume::double precision) AS sales_volume,
+                            MAX(ff.roe::double precision) AS roe,
+                            now() AS updated_at
+                        FROM dim_enterprise de
+                        JOIN fact_financials ff ON ff.enterprise_id = de.enterprise_id
+                        LEFT JOIN fact_sales fs
+                          ON fs.enterprise_id = de.enterprise_id
+                         AND fs.year::int = ff.year::int
+                        GROUP BY COALESCE(NULLIF(de.stock_code, ''), de.stock_name), de.stock_name, ff.year::int
+                        ON CONFLICT (stock_code, year) DO UPDATE
+                        SET
+                            enterprise_name = EXCLUDED.enterprise_name,
+                            revenue = EXCLUDED.revenue,
+                            net_profit = EXCLUDED.net_profit,
+                            total_assets = EXCLUDED.total_assets,
+                            sales_volume = EXCLUDED.sales_volume,
+                            roe = EXCLUDED.roe,
+                            updated_at = now();
+                        """
                     )
-                    SELECT
-                        COALESCE(NULLIF(de.stock_code, ''), de.stock_name) AS stock_code,
-                        de.stock_name AS enterprise_name,
-                        ff.year::int AS year,
-                        MAX(ff.revenue::double precision) AS revenue,
-                        MAX(ff.net_profit::double precision) AS net_profit,
-                        MAX(ff.total_assets::double precision) AS total_assets,
-                        MAX(fs.total_sales_volume::double precision) AS sales_volume,
-                        MAX(ff.roe::double precision) AS roe,
-                        now() AS updated_at
-                    FROM dim_enterprise de
-                    JOIN fact_financials ff ON ff.enterprise_id = de.enterprise_id
-                    LEFT JOIN fact_sales fs
-                      ON fs.enterprise_id = de.enterprise_id
-                     AND fs.year::int = ff.year::int
-                    GROUP BY COALESCE(NULLIF(de.stock_code, ''), de.stock_name), de.stock_name, ff.year::int
-                    ON CONFLICT (stock_code, year) DO UPDATE
-                    SET
-                        enterprise_name = EXCLUDED.enterprise_name,
-                        revenue = EXCLUDED.revenue,
-                        net_profit = EXCLUDED.net_profit,
-                        total_assets = EXCLUDED.total_assets,
-                        sales_volume = EXCLUDED.sales_volume,
-                        roe = EXCLUDED.roe,
-                        updated_at = now();
-                    """
-                )
+                except Exception:
+                    logger.warning(
+                        "startup: core_metrics_summary pre-aggregation skipped (source tables not yet available)"
+                    )
             else:
                 # SQLite-compatible bootstrap for local acceptance tests.
                 await conn.exec_driver_sql(
@@ -183,37 +190,42 @@ def create_app() -> FastAPI:
                 await conn.exec_driver_sql(
                     "CREATE INDEX IF NOT EXISTS ix_core_metrics_summary_enterprise_year ON core_metrics_summary (enterprise_name, year);"
                 )
-                await conn.exec_driver_sql(
-                    """
-                    INSERT INTO core_metrics_summary (
-                        stock_code, enterprise_name, year, revenue, net_profit, total_assets, sales_volume, roe, updated_at
+                try:
+                    await conn.exec_driver_sql(
+                        """
+                        INSERT INTO core_metrics_summary (
+                            stock_code, enterprise_name, year, revenue, net_profit, total_assets, sales_volume, roe, updated_at
+                        )
+                        SELECT
+                            COALESCE(NULLIF(de.stock_code, ''), de.stock_name) AS stock_code,
+                            de.stock_name AS enterprise_name,
+                            CAST(ff.year AS INTEGER) AS year,
+                            MAX(CAST(ff.revenue AS REAL)) AS revenue,
+                            MAX(CAST(ff.net_profit AS REAL)) AS net_profit,
+                            MAX(CAST(ff.total_assets AS REAL)) AS total_assets,
+                            MAX(CAST(fs.total_sales_volume AS REAL)) AS sales_volume,
+                            MAX(CAST(ff.roe AS REAL)) AS roe,
+                            CURRENT_TIMESTAMP AS updated_at
+                        FROM dim_enterprise de
+                        JOIN fact_financials ff ON ff.enterprise_id = de.enterprise_id
+                        LEFT JOIN fact_sales fs
+                          ON fs.enterprise_id = de.enterprise_id
+                         AND CAST(fs.year AS INTEGER) = CAST(ff.year AS INTEGER)
+                        GROUP BY COALESCE(NULLIF(de.stock_code, ''), de.stock_name), de.stock_name, CAST(ff.year AS INTEGER)
+                        ON CONFLICT(stock_code, year) DO UPDATE SET
+                            enterprise_name = excluded.enterprise_name,
+                            revenue = excluded.revenue,
+                            net_profit = excluded.net_profit,
+                            total_assets = excluded.total_assets,
+                            sales_volume = excluded.sales_volume,
+                            roe = excluded.roe,
+                            updated_at = CURRENT_TIMESTAMP;
+                        """
                     )
-                    SELECT
-                        COALESCE(NULLIF(de.stock_code, ''), de.stock_name) AS stock_code,
-                        de.stock_name AS enterprise_name,
-                        CAST(ff.year AS INTEGER) AS year,
-                        MAX(CAST(ff.revenue AS REAL)) AS revenue,
-                        MAX(CAST(ff.net_profit AS REAL)) AS net_profit,
-                        MAX(CAST(ff.total_assets AS REAL)) AS total_assets,
-                        MAX(CAST(fs.total_sales_volume AS REAL)) AS sales_volume,
-                        MAX(CAST(ff.roe AS REAL)) AS roe,
-                        CURRENT_TIMESTAMP AS updated_at
-                    FROM dim_enterprise de
-                    JOIN fact_financials ff ON ff.enterprise_id = de.enterprise_id
-                    LEFT JOIN fact_sales fs
-                      ON fs.enterprise_id = de.enterprise_id
-                     AND CAST(fs.year AS INTEGER) = CAST(ff.year AS INTEGER)
-                    GROUP BY COALESCE(NULLIF(de.stock_code, ''), de.stock_name), de.stock_name, CAST(ff.year AS INTEGER)
-                    ON CONFLICT(stock_code, year) DO UPDATE SET
-                        enterprise_name = excluded.enterprise_name,
-                        revenue = excluded.revenue,
-                        net_profit = excluded.net_profit,
-                        total_assets = excluded.total_assets,
-                        sales_volume = excluded.sales_volume,
-                        roe = excluded.roe,
-                        updated_at = CURRENT_TIMESTAMP;
-                    """
-                )
+                except Exception:
+                    logger.warning(
+                        "startup: core_metrics_summary pre-aggregation skipped (source tables not yet available)"
+                    )
     return app
 
 

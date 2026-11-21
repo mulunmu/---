@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     app_name: str = Field(...)
     environment: str = Field(...)
 
+    # 数据源通过环境变量注入；本地/容器环境使用不同 DSN，代码侧保持无感。
     database_url: str = Field(..., description="PostgreSQL DSN, e.g. postgresql+asyncpg://user:pass@host:5432/db")
     redis_url: str = Field(..., description="Redis URL, e.g. redis://redis:6379/0")
 

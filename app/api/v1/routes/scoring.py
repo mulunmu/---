@@ -18,6 +18,7 @@ async def get_scoring(
     force: bool = Query(False, description="强制重算，忽略缓存"),
     db: AsyncSession = Depends(get_db),
 ):
+    # 默认命中缓存结果，force=true 时强制重算并刷新缓存记录。
     result = await scoring_service.calculate(db, stock_code, year, force=force)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")

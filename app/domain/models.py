@@ -20,6 +20,7 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     metrics: Mapped[list["Metric"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    # 注意：这里的 users/metrics 为“演示域模型”，与 dim_enterprise 等业务事实表不是同一套数据域。
 
 
 class Metric(Base):

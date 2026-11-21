@@ -14,5 +14,6 @@ class ApiResponse(BaseModel, Generic[T]):
 
 
 def ok(data: Any = None, message: str = "ok") -> dict[str, Any]:
+    # 前端 `api-client.js` 依赖 {code,data,message} 包装结构做统一解包。
     return {"code": 0, "data": data, "message": message}
 

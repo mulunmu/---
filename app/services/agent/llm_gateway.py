@@ -66,6 +66,7 @@ class LLMGateway:
         timeout: float | None = 20.0,
         max_tokens: int = 800,
     ) -> LLMResult:
+        # OpenAI 兼容网关：统一超时/重试策略，调用失败由上层 orchestrator 做降级。
         if not self._client:
             raise LLMCallError("LLM not configured (OPENAI_API_KEY/LLM_API_KEY is missing)")
         model_name = model or self.model
@@ -85,6 +86,14 @@ class LLMGateway:
                         ],
                     ),
                     timeout=call_timeout,
+                )
+                logger.warning(
+                    "[LLM RAW RESPONSE] status=%s",
+                    getattr(resp.choices[0], "finish_reason", None) if getattr(resp, "choices", None) else None,
+                )
+                logger.warning(
+                    "[LLM RAW CONTENT] <<<%s>>>",
+                    (resp.choices[0].message.content if getattr(resp, "choices", None) else None),
                 )
                 content = (resp.choices[0].message.content or "").strip()
                 usage = getattr(resp, "usage", None)

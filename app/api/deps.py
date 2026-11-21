@@ -18,6 +18,7 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
 ) -> User:
     try:
+        # token 仅承载用户标识(sub)，用户详情仍以数据库查询为准。
         payload = decode_token(token)
         sub = payload.get("sub")
         if not sub:
